@@ -1,0 +1,24 @@
+---
+title: "hw6"
+author: "Lulu Zhang"
+date: "11/21/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(rvest)
+library(readr)
+library(broom)
+```
+
+```{r}
+# load data
+bwt = read.csv("./birthweight.csv")
+```
+
