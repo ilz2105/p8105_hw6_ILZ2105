@@ -22,3 +22,33 @@ library(broom)
 bwt = read.csv("./birthweight.csv")
 ```
 
+```{r}
+bwt %>% 
+  janitor::clean_names() %>% 
+  mutate(
+   frace = as.factor(frace),
+   frace = recode(frace,
+    "1" = "White", 
+    "2" = "Black", 
+    "3" = "Asian", 
+    "4" = "Puerto Rican", 
+    "8" = "Other", 
+    "9" = "Unknown"),
+   mrace = as.factor(mrace),
+  mrace = recode(mrace, 
+    "1" = "White", 
+    "2" = "Black", 
+    "3" = "Asian", 
+    "4" = "Puerto Rican", 
+    "8" = "Other"),
+   babysex = as.factor(babysex),
+   babysex = recode(babysex, 
+     "1" = "male", 
+    "2" = "female"),
+   malform = as.factor(malform),
+  malform = recode(malform,
+    "0" = "absent", 
+    "1" = "present")
+  )
+```
+
