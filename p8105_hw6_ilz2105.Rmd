@@ -6,24 +6,23 @@ output: github_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE)
 
-```{r}
 library(tidyverse)
-library(dplyr)
-library(rvest)
-library(readr)
-library(broom)
+library(modelr)
+library(mgcv)
+library(viridis)
 ```
+# Problem 1
+
+I will load and tidy the dataset `birthweight` for regression analysis. I converted `frace`, `mrace`, `babysex`, 
+and `malform` to factors; confirmed no missing variables; stnadardized variable to the metric system
+so i converted `delwt`, `ppwt`, and `wtgain`, from pounds to grams, and `mheight` from inches to cm. 
 
 ```{r}
 # load data
-bwt = read.csv("./birthweight.csv")
-```
-
-```{r}
-bwt %>% 
+bwt = read.csv("./birthweight.csv") %>% 
   janitor::clean_names() %>% 
   mutate(
    frace = as.factor(frace),
@@ -35,7 +34,7 @@ bwt %>%
     "8" = "Other", 
     "9" = "Unknown"),
    mrace = as.factor(mrace),
-  mrace = recode(mrace, 
+   mrace = recode(mrace, 
     "1" = "White", 
     "2" = "Black", 
     "3" = "Asian", 
@@ -46,9 +45,76 @@ bwt %>%
      "1" = "male", 
     "2" = "female"),
    malform = as.factor(malform),
-  malform = recode(malform,
+   malform = recode(malform,
     "0" = "absent", 
-    "1" = "present")
-  )
+    "1" = "present"),
+   delwt = 453.592*delwt, 
+   ppwt = 453.592*ppwt, 
+   wtgain = 453.592*wtgain, 
+   mheight = 2.54*mheight)
+  
+anyNA(bwt)
+# no missing values
+```
+
+Proposing a model for birthweight. I hypothesize `gaweeks`: gestational age in weeks, `pnumlbw`: previous number of low birth weight babies,
+`pnumgsa`:  number of prior small for gestational age babies, `ppbmi`:mother’s pre-pregnancy BMI, `smoken`: average number of cigarettes
+smoked per day during pregnancy, and `ppwt`: mother's pre-pregnancy weight are a few of the factors that influence baby's birthweight (outcome). 
+
+
+```{r include=FALSE}
+bwt %>% 
+  mutate(
+    mrace = fct_infreq(mrace)
+  ) %>% 
+  select(gaweeks, pnumlbw, pnumsga, ppbmi, smoken, ppwt)
+fit = lm(bwt ~ gaweeks + pnumlbw + pnumsga + smoken + ppwt, data = bwt)
+fit %>% 
+  broom::tidy()
+```
+Compare your model to two others:
+
+One using length at birth and gestational age as predictors (main effects only)
+One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+
+```{r}
+# main effects model
+fit_main = lm(bwt ~ blength + gaweeks, data = bwt)
+fit_main %>% 
+  broom::tidy() %>% 
+  select(term, estimate, p.value) %>% 
+  rename(
+    "Term" = "term",
+    "Estimate" = "estimate",
+    "p-value" = "p.value") %>% 
+  knitr::kable(digits = 4)
+
+# interactions model
+fit_interact = lm(bwt ~ bhead + blength + babysex + bhead * blength + bhead * babysex + blength * babysex +  bhead * blength * babysex, data = bwt)
+fit_interact %>%
+  broom::tidy() %>% 
+  select(term, estimate, p.value) %>% 
+  rename(
+    "Term" = "term",
+    "Estimate" = "estimate",
+    "p-value" = "p.value") %>% 
+  knitr::kable(digits = 4)
+```
+
+
+# Problem 2
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
 ```
 
