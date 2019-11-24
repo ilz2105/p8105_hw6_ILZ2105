@@ -281,9 +281,10 @@ weather_bs = weather_df %>%
   modelr::bootstrap(n = 5000) %>% 
   mutate(
     models = map(strap, ~lm(tmax ~ tmin, data = .x)),
-    results = map(models, broom::glance)) %>% 
-  unnest(results) %>% 
-  select(.id, r.squared, term, estimate) %>% 
+    results = map(models, broom::glance),
+   glanced = map(models, broom::glance)) %>% 
+  select(-strap, -models) %>%
+  unnest() %>% 
   pivot_wider(
     names_from = term,
     values_from = estimate) %>% 
@@ -294,5 +295,14 @@ weather_bs = weather_df %>%
   mutate(beta_ln = log(beta0*beta1))
   
 
+```
+
+```{r}
+# plot
+
+weather_bs %>% 
+  ggplot(aes(x = r.squared))+
+  geom_density()+
+  labs(title = "")
 ```
 
