@@ -14,6 +14,13 @@ library(modelr)
 library(mgcv)
 library(viridis)
 library(dplyr)
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
 ```
 # Problem 1
 
@@ -270,39 +277,52 @@ weather_df =
     tmax = tmax / 10) %>%
   select(name, id, everything())
 
-weather_df
 set.seed(1)
 ```
 
-Use 5000 bootstrap samples and, for each bootstrap sample, produce estimates of these two quantities. Plot the distribution of your estimates, and describe these in words. Using the 5000 bootstrap estimates, identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r^2 and log(β^0∗β^1). Note: broom::glance() is helpful for extracting r^2 from a fitted regression, and broom::tidy() (with some additional wrangling) should help in computing log(β^0∗β^1)
+Use 5000 bootstrap samples and, for each bootstrap sample, produce estimates of these two quantities. Plot the distribution of your estimates, and describe these in words. Using the 5000 bootstrap estimates, identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r^2 and log(β^0∗β^1). 
 
 ```{r}
 weather_bs = weather_df %>% 
   modelr::bootstrap(n = 5000) %>% 
   mutate(
     models = map(strap, ~lm(tmax ~ tmin, data = .x)),
-    results = map(models, broom::glance),
-   glanced = map(models, broom::glance)) %>% 
-  select(-strap, -models) %>%
-  unnest() %>% 
+    results = map(models, broom::tidy),
+    glanced = map(models, broom::glance)) %>% 
+  unnest(glanced, results) %>% 
+  select(.id, r.squared, estimate, term)
+   
+
+ new_weather_bs = weather_bs %>% 
+  select(-.id) %>% 
   pivot_wider(
     names_from = term,
     values_from = estimate) %>% 
-  select(-.id) %>% 
   rename(
-    beta0 = `(intercept)`,
-    beta1 = tmin) %>% 
-  mutate(beta_ln = log(beta0*beta1))
+    b0 = `(Intercept)`,
+    b1 = tmin) %>% 
+  mutate(log_betas = log(b0*b1))
   
 
 ```
 
 ```{r}
-# plot
-
-weather_bs %>% 
+# r^2 plot
+new_weather_bs %>% 
   ggplot(aes(x = r.squared))+
   geom_density()+
-  labs(title = "")
+  labs(title = "Plot showing distribution of r squared values")
+
+
+# log(beta0*beta1)
+new_weather_bs %>% 
+  ggplot(aes(x = log_betas))+
+  geom_density()+
+  labs(title = "Plot showing distribution of log(b0*b1)")
+
 ```
+ 
+ The 95% CI for r^2 is `r round(quantile(pull(weather_bs, r.squared), probs = c(0.025, 0.975)), digits = 2)`
+
+the 95% CI for log(b0*b1) `r round(quantile(pull(bootstrap_logbetas, log_betas), probs = c(0.025, 0.975)), digits = 2)`
 
