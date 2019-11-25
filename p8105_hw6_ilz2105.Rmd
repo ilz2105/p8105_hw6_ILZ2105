@@ -24,9 +24,7 @@ theme_set(theme_minimal() + theme(legend.position = "bottom"))
 ```
 # Problem 1
 
-I will load and tidy the dataset `birthweight` for regression analysis. I converted `frace`, `mrace`, `babysex`, 
-and `malform` to factors; confirmed no missing variables; stnadardized variable to the metric system
-so i converted `delwt`, `ppwt`, and `wtgain`, from pounds to grams, and `mheight` from inches to cm. 
+I will load and tidy the dataset `birthweight` for regression analysis. I converted `frace`, `mrace`, `babysex`, and `malform` to factors; confirmed no missing variables; and standardized variables to the metric system, so I converted `delwt`, `ppwt`, and `wtgain`, from pounds to grams, and `mheight` from inches to cm. 
 
 ```{r}
 # load data
@@ -64,12 +62,10 @@ bwt_data = read.csv("./birthweight.csv") %>%
 anyNA(bwt_data)
 # no missing values
 
-bwt_data
 ```
 
-Proposing a model for birthweight. I hypothesize `gaweeks`: gestational age in weeks, `pnumlbw`: previous number of low birth weight babies,
-`ppbmi`:mother’s pre-pregnancy BMI, `smoken`: average number of cigarettes
-smoked per day during pregnancy, and `ppwt`: mother's pre-pregnancy weight are a few of the factors that influence baby's birthweight (outcome). 
+Proposing a model for birthweight. I hypothesize that `mrace`: mother's race,  `gaweeks`: gestational age in weeks, `pnumlbw`: previous number of low birth weight babies,`ppbmi`:mother’s pre-pregnancy BMI, `smoken`: average number of cigarettessmoked per day during pregnancy, and `ppwt`: mother's pre-pregnancy weight are a few of the factors that influence baby's birthweight (outcome). I will test each of these variables separately to see if they are significantly associated with `bwt` by running a linear regression model and assessing the plots to see if they appear to be significantly associated. 
+If they are, I will include them in my final model as a predictor of `bwt`. 
 
 
 ```{r include=FALSE}
@@ -90,7 +86,7 @@ fit_model %>%
 Testing significance of each hypothesized variable separately, I can look to see if 
 the p-value < 0.05, or if there appears to be a linear association in the plots. 
 
-Looking at `mrace`, the p-values are all < 0.05 except for Asian, indicating a significant relationship between mother's race and birthweight. 
+Testing `mrace`, the p-values are all < 0.05 except for Asian, indicating a significant relationship between mother's race and birthweight. 
 
 ```{r}
 mrace_model = lm(bwt ~ mrace, data = bwt_model) %>% 
@@ -102,7 +98,7 @@ mrace_model
 
 ```
 
-Looking at `gaweeks`, it appears to be significntly associated with bwt looking at the p-values and the graph. 
+Testing `gaweeks`, it appears to be significantly associated with `bwt` when looking at the p-value and the graph. 
 
 ```{r}
 gaweeks_model = lm(bwt ~ gaweeks, data = bwt_model) %>% 
@@ -118,7 +114,7 @@ bwt_model %>%
   geom_smooth(method = 'lm')
 ```
 
-Looking at `pnumlbw`, it does not appear to be significantly associated with birthweight. 
+Testing `pnumlbw`, it does not appear to be significantly associated with birthweight. 
 
 ```{r}
 pnumlbw_model = lm(bwt ~ pnumlbw, data = bwt_model) %>% 
@@ -134,7 +130,7 @@ bwt_model %>%
   geom_smooth(method = 'lm')
 ```
 
-Looking at `ppbmi`, it does appear to be significantly associated with birthweight 
+Testing `ppbmi`, it does appear to be significantly associated with birthweight 
 based on the p-values and plot. 
 
 ```{r}
@@ -151,7 +147,7 @@ bwt_model %>%
   geom_smooth(method = 'lm')
 ```
 
-Looking at `smoken`: it does not appear to be significantly associated with birthweight when looking at the plot. 
+Testing `smoken`: it does not appear to be significantly associated with birthweight when looking at the plot. 
 
 ```{r}
 smoken_model = lm(bwt ~ smoken, data = bwt_model) %>% 
@@ -183,14 +179,17 @@ bwt_model %>%
   geom_smooth(method = 'lm')
 ```
 
+My final model with the significant variables associated with `bwt`:
+
 ```{r}
-final_model = lm(bwt ~ mrace + gaweeks + ppwt + ppbmi + smoken, data = bwt_model) %>% 
+final_model = lm(bwt ~ mrace + gaweeks + ppwt + ppbmi, data = bwt_model) %>% 
   broom::tidy() %>% 
   knitr::kable(digits = 3)
 final_model
 ```
 
-plot of model residuals against fitted values
+Next, I will plot of model residuals against fitted values. There does not appear to be a distinct trend in the 
+plot, there is a large cluster but no apparent positive or negative trend for my model. 
 
 ```{r}
 bwt_resid = bwt_model %>% 
@@ -198,6 +197,7 @@ bwt_resid = bwt_model %>%
   modelr::add_predictions(fit_model)%>% 
   ggplot(aes(x = pred, y = resid))+
   geom_point()+
+  geom_smooth()+
   labs(title = "Plot of Model Residuals Against Fitted Values")
 
 bwt_resid
@@ -236,7 +236,7 @@ fit_interact %>%
 
 cv = crossv_mc(bwt_data, 100)
 
-cv %>% 
+cv_x = cv %>% 
   mutate(
     final_model = map(train, ~lm(bwt ~ mrace + gaweeks + ppwt + ppbmi + smoken, data = bwt_model)),
     fit_main = map(train, ~lm(bwt ~ blength + gaweeks, data = bwt_data)),
@@ -246,13 +246,13 @@ cv %>%
     rmse_interact = map2_dbl(fit_interact, test, ~rmse(model = .x, data = .y))
   )
 
-cv %>% 
+cv_x %>% 
   select(starts_with("rmse")) %>% 
   pivot_longer(
     everything(),
     names_to = "model",
     values_to = "rmse",
-    names_prefix = "rmse_") %>% 
+    names_prefix = "rmse_")%>% 
   mutate(
     model = fct_inorder(model)) %>% 
   ggplot(aes(x = model, y = rmse))+
@@ -260,7 +260,9 @@ cv %>%
   labs(title = "Cross validated prediction errors")
 
 ```
-
+The RMSEs for my final model are much larger than the main effects model and the interactions model. The 
+interaction model has the lowest RMSE values indicating that the `interact` model had the best fit, and my `final` 
+model had the poorest fit because the residuals were further away from the regression line data points. 
 
 # Problem 2
 
@@ -280,7 +282,9 @@ weather_df =
 set.seed(1)
 ```
 
-Use 5000 bootstrap samples and, for each bootstrap sample, produce estimates of these two quantities. Plot the distribution of your estimates, and describe these in words. Using the 5000 bootstrap estimates, identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r^2 and log(β^0∗β^1). 
+I used 5000 bootstrap samples and, for each bootstrap sample, produced estimates of r^2 and log(beta0*beta1). Then 
+I plotted the distribution of my estimates. Then using the 5000 bootstrap estimates, 
+I identified the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r^2 and log(β^0∗β^1). 
 
 ```{r}
 weather_bs = weather_df %>% 
@@ -306,23 +310,31 @@ weather_bs = weather_df %>%
 
 ```
 
+
 ```{r}
 # r^2 plot
 new_weather_bs %>% 
   ggplot(aes(x = r.squared))+
   geom_density()+
-  labs(title = "Plot showing distribution of r squared values")
+  labs(title = "Plot showing distribution of r squared estimates",
+       x = "r squared estimates")
 
 
 # log(beta0*beta1)
 new_weather_bs %>% 
   ggplot(aes(x = log_betas))+
   geom_density()+
-  labs(title = "Plot showing distribution of log(b0*b1)")
+  labs(title = "Plot showing distribution of log(b0*b1) estimates",
+       x = "log(beta0*beta1) estimates")
 
 ```
- 
- The 95% CI for r^2 is `r round(quantile(pull(weather_bs, r.squared), probs = c(0.025, 0.975)), digits = 2)`
 
-the 95% CI for log(b0*b1) `r round(quantile(pull(bootstrap_logbetas, log_betas), probs = c(0.025, 0.975)), digits = 2)`
+Both the plot showing the r^2 values and the `log(beta0*beta1)` both have an apporximately normal distribution. The r^2 
+plot shows the distribution of the total portion of variation in `tmax` due to `tmin` for the 5000 bootstrap samples
+produced. The mean r^ value appears to be around 0.91. The plot of the distribution of `log(b0*b1)` also follows an 
+approx. normal distribution, with the mean centering around 2.01. The max density for the plot showing the distributon 
+of `log(b1*b0)` estimates is slightly lower than the plot showing the distribution of r^2 estimates.
+
+The 95% CI for r^2 is `r round(quantile(pull(weather_bs, r.squared), probs = c(0.025, 0.975)), digits = 2)`.
+The 95% CI for log(b0*b1) `r round(quantile(pull(new_weather_bs, log_betas), probs = c(0.025, 0.975)), digits = 2)`.
 
